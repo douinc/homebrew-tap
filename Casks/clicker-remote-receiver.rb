@@ -17,9 +17,9 @@ cask "clicker-remote-receiver" do
   app "ClickerRemoteReceiver.app"
 
   postflight do
-    # Request accessibility permission on first install
-    system_command "/usr/bin/osascript",
-                   args: ["-e", 'tell application "System Preferences" to reveal anchor "Privacy_Accessibility" of pane id "com.apple.preference.security"'],
+    # Open Privacy & Security > Accessibility settings (works on macOS Ventura+)
+    system_command "/usr/bin/open",
+                   args: ["x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"],
                    sudo: false
   end
 
