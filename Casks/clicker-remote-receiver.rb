@@ -1,6 +1,6 @@
 cask "clicker-remote-receiver" do
-  version "1.8"
-  sha256 "dffaffaca5ab8091683a63aa9b9a4e12ab6a16500182edf750e188013542d6e8"
+  version "1.10"
+  sha256 "88763a4fb888c1f595b5862a38e19b12d5426f62b135e81c8b6f5607e8a257aa"
 
   url "https://github.com/douinc/clicker/releases/download/v#{version}/ClickerRemoteReceiver-#{version}.dmg"
   name "Clicker Remote Receiver"
