@@ -1,0 +1,77 @@
+name: Update Deck Cask
+
+on:
+  # Triggered from deck repo after release
+  repository_dispatch:
+    types: [deck-release]
+
+  # Manual trigger with version input
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to update to (e.g., 1.12)'
+        required: false
+
+jobs:
+  update-cask:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
+
+      - name: Get latest release version
+        id: version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          PAYLOAD_VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          if [[ -n "$INPUT_VERSION" ]]; then
+            VERSION="$INPUT_VERSION"
+          elif [[ -n "$PAYLOAD_VERSION" ]]; then
+            VERSION="$PAYLOAD_VERSION"
+          else
+            # Fetch latest release from GitHub API
+            VERSION=$(curl -s https://api.github.com/repos/douinc/deck/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Updating to version: $VERSION"
+
+      - name: Download DMG and calculate SHA256
+        id: sha
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          DMG_URL="https://github.com/douinc/deck/releases/download/v${VERSION}/Deck-${VERSION}.dmg"
+
+          echo "Downloading: $DMG_URL"
+          curl -L -o deck.dmg "$DMG_URL"
+
+          SHA256=$(shasum -a 256 deck.dmg | awk '{print $1}')
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+          echo "SHA256: $SHA256"
+
+      - name: Update Cask formula
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SHA256: ${{ steps.sha.outputs.sha256 }}
+        run: |
+          CASK_FILE="Casks/deck.rb"
+
+          # Update version
+          sed -i '' "s/version \"[^\"]*\"/version \"${VERSION}\"/" "$CASK_FILE"
+
+          # Update sha256
+          sed -i '' "s/sha256 \"[^\"]*\"/sha256 \"${SHA256}\"/" "$CASK_FILE"
+
+          echo "Updated $CASK_FILE:"
+          head -5 "$CASK_FILE"
+
+      - name: Commit and push
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/deck.rb
+          git diff --cached --quiet || git commit -m "Update deck to v${VERSION}"
+          git push
